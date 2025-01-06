@@ -47,13 +47,17 @@ class Event(BaseModel):
    userid: str
    eventname: str
 
+class ReportRequest(BaseModel):
+    lastseconds: int
+    userid: str
+
 
 @app.post("/process_event/")
 async def  process_event (event: Event):
    """
    Process an event and store it in the database.
    """
-   event_timestamp_utc = datetime.now(timezone.utc).isoformat()
+   event_timestamp_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
    try:
       with sqlite3.connect(DATABASE_NAME) as conn:
@@ -85,8 +89,39 @@ async def get_all_events():
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM events")
             events = cursor.fetchall()
-        return {"events": events}
+        return events
     except sqlite3.Error as e:
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
-  
+    
+
+@app.post("/get_reports/")
+async def get_reports(report_request: ReportRequest):
+   """
+    Retrieve all events for a specific user within the last `lastseconds` seconds.
+    """
+   try:
+      with sqlite3.connect(DATABASE_NAME) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM events WHERE userid = ?", (report_request.userid,))
+            events = cursor.fetchall()
+
+      result_events = []
+   
+      for event in events:
+         event_timestamp = datetime.strptime(event[1], "%Y-%m-%d %H:%M:%S")
+
+         datetime_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+         datetime_now = datetime.strptime(datetime_now, "%Y-%m-%d %H:%M:%S")
+         
+         time_diffrence = (datetime_now - event_timestamp).total_seconds()
+         if time_diffrence <= report_request.lastseconds:
+            result_events.append(event)
+
+      return {"events": result_events}
+      
+   except sqlite3.Error as e: 
+      raise HTTPException(status_code=500, detail=f"Database error: {e}")
+   
+   except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
    
