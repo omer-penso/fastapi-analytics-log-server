@@ -99,3 +99,39 @@ def test_get_all_events(client, test_db):
     assert events[1][1] == "2025-01-06T12:30:00Z"  # eventtimestamputc
     assert events[1][2] == "user456"  # userid
     assert events[1][3] == "purchase_completed"
+
+def test_get_reports(client, test_db):
+    """
+    Test the /get_reports/ endpoint to retrieve events for a user within the last X seconds.
+    """
+    # Insert sample data into the database
+    cursor = test_db.cursor()
+    current_time = datetime.now()
+
+    # Add an event for `user123` within the range
+    event_in_range = (current_time - timedelta(seconds=100)).strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+        INSERT INTO events (eventtimestamputc, userid, eventname)
+        VALUES (?, ?, ?)
+    """, (event_in_range, "user123", "test_event_in_range"))
+
+    # Add an event for `user123` outside the range
+    event_out_of_range = (current_time - timedelta(seconds=500)).strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+        INSERT INTO events (eventtimestamputc, userid, eventname)
+        VALUES (?, ?, ?)
+    """, (event_out_of_range, "user123", "test_event_out_of_range"))
+
+    test_db.commit()
+
+    # Make POST request to the /get_reports/ endpoint
+    payload = {"lastseconds": 200, "userid": "user123"}
+    response = client.post("/get_reports/", json=payload)
+
+    # Verify the response
+    assert response.status_code == 200
+    response_data = response.json()  # Extract the JSON response
+    events = response_data["events"]  # Access the "events" key
+    assert len(events) == 1  # Only 1 event is within the range
+    assert events[0][2] == "user123"  # userid
+    assert events[0][3] == "test_event_in_range"  # eventname

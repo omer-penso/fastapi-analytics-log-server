@@ -89,7 +89,7 @@ async def get_all_events():
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM events")
             events = cursor.fetchall()
-        return events
+        return {"events": events}
     except sqlite3.Error as e:
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
     
