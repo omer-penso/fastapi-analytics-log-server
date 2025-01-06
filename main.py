@@ -47,8 +47,12 @@ class Event(BaseModel):
    userid: str
    eventname: str
 
-@app.post("/")
+
+@app.post("/process_event/")
 async def  process_event (event: Event):
+   """
+   Process an event and store it in the database.
+   """
    event_timestamp_utc = datetime.now(timezone.utc).isoformat()
 
    try:
@@ -69,5 +73,20 @@ async def  process_event (event: Event):
                 "eventname": event.eventname,
             },
         }
+
+
+@app.get("/events/")
+async def get_all_events():
+    """
+    Retrieve all events stored in the database.
+    """
+    try:
+        with sqlite3.connect(DATABASE_NAME) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM events")
+            events = cursor.fetchall()
+        return {"events": events}
+    except sqlite3.Error as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
   
    
