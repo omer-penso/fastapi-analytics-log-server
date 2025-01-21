@@ -51,6 +51,9 @@ class ReportRequest(BaseModel):
     lastseconds: int
     userid: str
 
+@app.get("/")
+async def get_all_events():
+    return {"message": "Welcome to the analytics API!"}
 
 @app.post("/process_event/")
 async def  process_event (event: Event):
